@@ -33,9 +33,9 @@ WORKSPACE_LIB="$(dirname "$0")/../lib"
   echo "environment hook → database configuration hook → workspace setup hook (or"
   echo "legacy setup fallback) → database preparation → optional seed and"
   echo "bootstrap hooks."
-  echo "The database hook can read WORKSPACE_DB_SUFFIX. It can also read"
-  echo "WORKSPACE_ROOT_PATH, but only while the hook runs. The hook runs in the"
-  echo "workspace checkout, not the original checkout."
+  echo "When Workspace resolves an original checkout, the database hook can read"
+  echo "WORKSPACE_ROOT_PATH. The hook runs in the workspace checkout, not the"
+  echo "original checkout."
   echo ""
   echo "Workspace never runs bin/update."
   exit 0
@@ -199,12 +199,6 @@ fi
 # provider, root, or stable database identity already resolved above.
 load_dotenv_defaults ./.env
 
-# An inherited value or dotenv can leave the hook-only root path exported.
-# Preserve the resolved value while removing that export before child work.
-_resolved_workspace_root_path="$WORKSPACE_ROOT_PATH"
-unset WORKSPACE_ROOT_PATH
-WORKSPACE_ROOT_PATH="$_resolved_workspace_root_path"
-
 # ── Export workspace DB env vars ─────────────────────────────────
 
 export WORKSPACE_DB_SUFFIX="_${WORKSPACE_NAME}"
@@ -231,8 +225,8 @@ source_workspace_environment_hook
 
 # ── Materialize and patch DB config before project setup ─────────
 
-# A database hook may copy config/database.yml from the root checkout. Give
-# only this hook the path so later hooks and the app do not depend on it.
+# Some projects copy config/database.yml from the root checkout. Pass its
+# resolved path directly to the database hook when it names a directory.
 if [ -x bin/workspace-database-hook ]; then
   header "Preparing database configuration"
   if [ -d "$WORKSPACE_ROOT_PATH" ]; then
