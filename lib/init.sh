@@ -551,7 +551,7 @@ else
           {
             "type": "command",
             "command": "bin/workspace prune --deferred",
-            "timeout": 5,
+            "timeout": 3,
             "statusMessage": "Scheduling workspace cleanup"
           }
         ]
