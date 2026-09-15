@@ -33,6 +33,9 @@ WORKSPACE_LIB="$(dirname "$0")/../lib"
   echo "environment hook → database configuration hook → workspace setup hook (or"
   echo "legacy setup fallback) → database preparation → optional seed and"
   echo "bootstrap hooks."
+  echo "When Workspace resolves an original checkout, the database hook can read"
+  echo "WORKSPACE_ROOT_PATH. The hook runs in the workspace checkout, not the"
+  echo "original checkout."
   echo ""
   echo "Workspace never runs bin/update."
   exit 0
@@ -222,11 +225,15 @@ source_workspace_environment_hook
 
 # ── Materialize and patch DB config before project setup ─────────
 
-# Some projects generate config/database.yml locally. They can do that here so
-# the CLI can isolate it before bin/setup performs any database work.
+# Some projects copy config/database.yml from the root checkout. Pass its
+# resolved path directly to the database hook when it names a directory.
 if [ -x bin/workspace-database-hook ]; then
   header "Preparing database configuration"
-  bin/workspace-database-hook
+  if [ -d "$WORKSPACE_ROOT_PATH" ]; then
+    WORKSPACE_ROOT_PATH="$WORKSPACE_ROOT_PATH" bin/workspace-database-hook
+  else
+    bin/workspace-database-hook
+  fi
 fi
 
 patch_database_yml

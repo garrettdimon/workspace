@@ -43,7 +43,7 @@ The project customizes the lifecycle with scripts in its own `bin/` directory. E
 | --- | --- | --- |
 | `bin/workspace-identity-hook` | Before isolated sibling lifecycle work when neither `.conductor-workspace` nor `.workspace` exists; print the established name without `_` | Executed with `WORKSPACE_PROVIDER`, `WORKSPACE_ROOT_PATH`, and derived `WORKSPACE_NAME` exported; empty output defers to provider/Git defaults; never called for the root/default checkout |
 | `bin/workspace-environment-hook` | Before project-owned or runtime-dependent bootstrap, run, and archive work; also before ordinary root setup | **Sourced** after resolved provider state is exported; PATH and other exports persist into setup, Rails, Foreman, and cleanup |
-| `bin/workspace-database-hook` | Before project setup, with `WORKSPACE_DB_SUFFIX` exported; materialize local `database.yml` here when needed | Executed |
+| `bin/workspace-database-hook` | When present, before project setup, with `WORKSPACE_DB_SUFFIX` and a resolved `WORKSPACE_ROOT_PATH` when available; use the root path to copy database configuration when needed | Executed from the workspace checkout, not the original checkout |
 | `bin/workspace-setup-hook` | After shared files and `WORKSPACE_DB_SUFFIX`, before Workspace prepares dev/test databases; prevents the legacy setup fallback in managed siblings | Executed |
 | `bin/workspace-seed` | After `db:prepare` during bootstrap | Executed |
 | `bin/workspace-bootstrap-hook` | After DB preparation, seeding, and `.workspace` file write | Executed |
@@ -58,6 +58,11 @@ and export changes that subprocesses need. Use the environment hook for
 project-owned activation of mise, asdf, rbenv, Nix, direnv, or another manager;
 Workspace does not assume or require a specific runtime manager. A nonzero hook
 result stops the current lifecycle.
+
+`WORKSPACE_ROOT_PATH` is the path to the original checkout. A database hook can
+use it to copy a file such as `config/database.yml`, even though the hook runs
+from the workspace checkout. When the resolved path names an existing
+directory, Workspace guarantees that the database hook receives it unchanged.
 
 ## Key concepts
 
@@ -145,4 +150,4 @@ cd .. && rm -rf myapp-feature-x
 
 - Source: <https://github.com/jnunemaker/workspace>
 - Local install: `~/.workspace` (CLI in `~/.workspace/bin/workspace`, lib scripts in `~/.workspace/lib/`)
-- Environment: `WORKSPACE_HOME` (install location), `WORKSPACE_PORT` (optional base-port override), `SUPERCONDUCTOR_PORT` / `SUPERSET_PORT` / `CONDUCTOR_PORT` (provider-assigned base ports), `WORKSPACE_DB_SUFFIX` (exported during bootstrap/run), `WORKSPACE_APP_URL` (optional displayed URL from the run hook)
+- Environment: `WORKSPACE_HOME` (install location), `WORKSPACE_PORT` (optional base-port override), `SUPERCONDUCTOR_PORT` / `SUPERSET_PORT` / `CONDUCTOR_PORT` (provider-assigned base ports), `WORKSPACE_DB_SUFFIX` (exported during bootstrap/run), `WORKSPACE_ROOT_PATH` (resolved path to the original checkout; guaranteed to be available to the database hook when it names an existing directory), `WORKSPACE_APP_URL` (optional displayed URL from the run hook)
