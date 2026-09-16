@@ -111,6 +111,7 @@ assert_true "codex environment has shim archive action" grep -q 'command = "bin/
 assert_true "codex hooks created" [ -f .codex/hooks.json ]
 assert_true "codex recovery hook schedules shim prune" grep -q 'bin/workspace prune --deferred' .codex/hooks.json
 assert_true "codex hooks contain valid JSON" ruby -rjson -e 'JSON.parse(File.read(".codex/hooks.json"))'
+assert_true "codex recovery hook respects SessionEnd timeout limit" ruby -rjson -e 'hooks = JSON.parse(File.read(".codex/hooks.json")).fetch("hooks").fetch("SessionEnd"); exit(hooks.flat_map { |group| group.fetch("hooks") }.all? { |hook| hook.fetch("timeout") == 3 })'
 
 cleanup_command=$(codex_cleanup_command .codex/environments/environment.toml)
 assert_true "native cleanup quotes the resolved worktree path" sh -c 'case "$1" in *"cd \"\$workspace_cleanup_path\""*) exit 0;; *) exit 1;; esac' sh "$cleanup_command"
