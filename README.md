@@ -32,8 +32,8 @@ every `??` path separately with `git diff --no-index /dev/null path/from/status`
 project-specific lifecycle hooks the application needs, then stage and commit
 only the files you reviewed.
 
-From a sibling checkout created by a supported manager or `git worktree add`,
-use the committed project entrypoint for the normal lifecycle:
+For a sibling checkout you manage yourself, use the committed project
+entrypoint when it needs application services or databases:
 
 ```sh
 bin/workspace bootstrap
@@ -152,12 +152,31 @@ exports `WORKSPACE_PROVIDER`, `WORKSPACE_ROOT_PATH`, and the detected
 called. A non-empty `.conductor-workspace` remains authoritative for the
 worktree until the project removes it.
 
+## Reuse the task's checkout
+
+Use one worktree for each task. When Conductor, Superset, or Superconductor
+has already created the task's checkout, start Claude Code or Codex there.
+Starting an agent does not require another worktree. Let the manager's
+configured lifecycle own setup and teardown; do not repeat bootstrap when
+its setup is already running or has succeeded.
+
+For example, start Claude without `--worktree` inside a Conductor workspace.
+When opening that checkout in the Codex desktop app, use **Local** rather
+than requesting a new worktree. Use `claude --worktree`, Codex's **Worktree**
+mode, or `git worktree add` when you intentionally want a separate task
+checkout. Workspace prepares an existing checkout; it does not create one.
+
+File-only scratch worktrees do not need application setup. A manually managed
+worktree can run `bin/workspace bootstrap` when application resources become
+necessary. A client's configured setup may run automatically, as described
+for Codex below.
+
 ## Codex worktrees
 
 When those files do not already exist, `workspace init` creates
 `.codex/environments/environment.toml` with:
 
-- A setup script that runs `bin/workspace bootstrap` whenever Codex creates a worktree.
+- A setup script that runs `bin/workspace bootstrap` when Codex creates a worktree using this local environment.
 - A native cleanup script that runs the disposable worktree's `bin/workspace archive` before Codex removes it. It prefers `CODEX_WORKTREE_PATH` when available; current Codex cleanup runs inside the worktree without exporting that setup-only variable, so Workspace verifies the current checkout is a linked Git worktree before using it.
 - **Run** and **Workspace info** actions that use `bin/workspace`.
 - An **Archive workspace** action for explicit manual teardown.
@@ -178,8 +197,11 @@ which waits for Git to confirm that Codex removed the worktree before killing
 its ports and dropping its databases.
 
 After committing the generated `.codex` files, select the local environment in
-Codex when starting a worktree chat. Review and trust the project hook when
-Codex prompts; untrusted command hooks are skipped.
+Codex when starting a worktree chat that needs application setup. Bootstrap
+runs automatically for that environment; do not run it again just because
+the agent starts. For file-only scratch work, create the worktree without
+this setup environment. Review and trust the project hook when Codex prompts;
+untrusted command hooks are skipped.
 
 `CODEX_SOURCE_TREE_PATH` and `CODEX_WORKTREE_PATH` locate Codex checkouts when
 Codex provides them; they never construct `WORKSPACE_NAME` or
@@ -220,9 +242,10 @@ the check: that would incorrectly authorize inherited settings.
 
 ## Claude Code worktrees
 
-Claude Code creates worktrees under `.claude/worktrees/`, including for
-subagents that use `isolation: worktree`. These are ordinary linked Git
-worktrees, not a separate Workspace provider. In an ordinary Git worktree,
+When explicitly requested, Claude Code creates worktrees under
+`.claude/worktrees/`, including for subagents that use `isolation: worktree`.
+These are ordinary linked Git worktrees, not a separate Workspace provider.
+In an ordinary Git worktree,
 bootstrap is on demand: run `bin/workspace bootstrap` only when it needs
 application services or databases, including for tests. Scratch worktrees
 that only edit files do not need bootstrap.

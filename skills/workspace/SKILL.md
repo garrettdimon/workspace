@@ -14,7 +14,7 @@ Installed at `~/.workspace`. The CLI is `workspace`.
 Invoke when the user wants to:
 
 - **Onboard a project or refresh its generated integration files** → `workspace init` from the root checkout
-- **Spin up a sibling checkout** (feature branch, experiment) → `bin/workspace bootstrap`
+- **Prepare an existing sibling checkout for application work** → `bin/workspace bootstrap`, unless its lifecycle owner is already running setup or has completed it
 - **Start the dev server** inside a sibling → `bin/workspace run`
 - **Tear down a workspace** when done → `bin/workspace archive`
 - **Customize the lifecycle** (seeding, per-workspace env vars, external cleanup) → edit a hook in `bin/`
@@ -22,7 +22,15 @@ Invoke when the user wants to:
 
 Strong signals you're in workspace territory: a `.workspace` file in the repo, a `.conductor/settings.toml` / `.superconductor/config.json` / `.superset/config.json`, sibling directories like `myapp-feature-x` next to `myapp`, or the user mentioning Conductor / Superset / Superconductor.
 
-Claude Code worktrees (`.claude/worktrees/…`) are ordinary linked Git worktrees, not a separate Workspace provider. Bootstrap ordinary Git worktrees on demand with `bin/workspace bootstrap` only when the task needs application services or databases, including for tests; file-only scratch worktrees do not need it. Workspace generates no Claude Code hooks. For a bootstrapped worktree whose ownership is unambiguous, run `bin/workspace archive` inside it before removal.
+## Choose the checkout and lifecycle owner
+
+Use one worktree for each task. Reuse the checkout already supplied by Conductor, Superset, Superconductor, or the client for that task. Do not create another worktree merely because an agent is starting. Let the manager's configured lifecycle own setup and teardown; wait for an active setup to finish rather than running a second bootstrap. A new agent session does not itself require repeating successful setup.
+
+Inside an existing task checkout, start Claude without `--worktree`, or use **Local** when opening it in the Codex desktop app. Request `claude --worktree`, Codex **Worktree** mode, or `git worktree add` only for an intentionally separate task checkout. `workspace bootstrap` prepares a checkout; it does not create one.
+
+The generated Codex local environment runs bootstrap automatically when selected for a new worktree. Do not repeat that setup when the agent starts. For file-only scratch work, create the worktree without that setup environment. In a manually managed worktree, bootstrap only when application resources are needed and archive those resources before removing the checkout. In a manager-owned checkout, use that manager's configured lifecycle.
+
+Claude Code worktrees (`.claude/worktrees/…`) are ordinary linked Git worktrees, not a separate Workspace provider. Workspace generates no Claude Code hooks; Claude removing a worktree does not invoke Workspace cleanup.
 
 Manager settings apply only when the canonical `SUPERCONDUCTOR_WORKSPACE_PATH`, `SUPERSET_WORKSPACE_PATH`, or `CONDUCTOR_WORKSPACE_PATH` matches Git's current checkout root. Resolve symlinks before comparison; a manager alias and physical directory can name the same checkout. A different owner path excludes that manager's identity, root, and ports together, leaving a separate linked worktree to Git detection and registration. A `.claude/worktrees/…` path or identity marker alone does not establish ownership.
 
@@ -33,7 +41,7 @@ Manager root, name, or port inputs without a usable matching-family owner path s
 | Command | When to run | What it does |
 | --- | --- | --- |
 | `workspace init` | During onboarding, or later when intentionally refreshing generated files; run from the root checkout | Patches `config/database.yml`, creates/updates `bin/workspace` plus `.workspace-version`, and creates/updates recognized provider configs to use the shim. Does not scaffold optional hooks. Idempotent. |
-| `bin/workspace bootstrap` | In each manager-created sibling or linked checkout created with `git worktree add` | Links untracked shared files, exports the suffix, publishes Git cleanup registration, sources the environment hook, runs the dedicated setup hook (or legacy setup fallback), prepares databases, writes `.workspace`, and runs optional post-setup hooks. In root, sources the environment hook before ordinary setup. Never runs `bin/update`. |
+| `bin/workspace bootstrap` | Called by the lifecycle owner for application setup in an existing checkout; manually when needed if no manager is handling setup | Links untracked shared files, exports the suffix, publishes Git cleanup registration, sources the environment hook, runs the dedicated setup hook (or legacy setup fallback), prepares databases, writes `.workspace`, and runs optional post-setup hooks. In root, sources the environment hook before ordinary setup. Never runs `bin/update`. |
 | `bin/workspace run` | To start the dev server in a sibling | Loads linked `.env` defaults, reserves a Git port and exports `WORKSPACE_DB_SUFFIX`, sources the environment hook, computes authoritative service ports, sources `bin/workspace-run-hook`, displays its optional `WORKSPACE_APP_URL`, then starts foreman. |
 | `bin/workspace archive` | When you're done with a sibling workspace | Sources the environment hook, runs `bin/workspace-archive-hook`, kills processes on the workspace's ports, and drops the suffixed DBs. |
 | `bin/workspace prune` | From the root or any remaining checkout after an external tool removes Git worktrees | Reconciles the shared Git registry and archives resources for worktrees that no longer exist. Safe to re-run. |
@@ -119,7 +127,10 @@ git diff --no-index /dev/null bin/workspace
 shim, minimum revision, database patch, or recognized provider configuration;
 review tracked changes and every `??` generated file before committing.
 
-**Spinning up a feature branch workspace**
+**Creating a separate feature branch workspace manually**
+
+Use this when the task does not already have a checkout supplied by a manager
+or client. Omit bootstrap and run for file-only scratch work.
 
 ```sh
 cd ~/projects
@@ -131,7 +142,9 @@ bin/workspace bootstrap            # symlinks, suffixed DBs, hooks all run
 bin/workspace run                  # start the dev server
 ```
 
-**Tearing down**
+**Tearing down a manually managed workspace**
+
+For a manager-owned checkout, use its configured archive or removal flow.
 
 ```sh
 cd ~/projects/myapp-feature-x
