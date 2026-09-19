@@ -186,14 +186,55 @@ Codex provides them; they never construct `WORKSPACE_NAME` or
 `WORKSPACE_DB_SUFFIX`. Cleanup may instead use its verified linked-worktree
 working directory. In either case, the same provider-neutral identity resolver used by every other
 lifecycle command reads stable markers, hooks, provider variables, and Git
-metadata. Superconductor, Superset, and Conductor variables always take
-precedence over Git detection.
+metadata. Superconductor, Superset, and Conductor variables take precedence
+over Git detection only when they belong to the current checkout.
 
 Cleanup registrations live under the repository's shared Git directory at
 `.git/workspace/registry/`, so they survive deletion of the disposable
 worktree. The registry, deferred SessionEnd prune, and reconciliation on the
 next `workspace bootstrap` or `workspace run` are recovery mechanisms when
 native cleanup could not complete.
+
+## Manager checkout ownership
+
+Workspace compares the manager's `SUPERCONDUCTOR_WORKSPACE_PATH`,
+`SUPERSET_WORKSPACE_PATH`, or `CONDUCTOR_WORKSPACE_PATH` with Git's current
+checkout root. Both paths are resolved through symlinks before comparison:
+Conductor may use a branch-named alias for a checkout stored under a city name.
+When they match, Workspace preserves the manager's identity, shared root,
+ports, and lifecycle.
+
+When the owner path identifies a different checkout, that manager's inherited
+identity, root, and port inputs are ignored together. A separate linked Git
+worktree uses Git detection and its own cleanup registration; an agent running
+in the manager's existing checkout continues using that manager's lifecycle.
+A `.workspace` marker pins a database identity, not checkout ownership.
+
+**Compatibility:** manager identity, root, or port variables now require a
+usable matching-family `*_WORKSPACE_PATH`. Missing or unusable owner paths
+stop lifecycle commands instead of guessing which checkout owns the resources.
+Run from the manager's launch context with its checkout path supplied, or use
+a clean shell without inherited manager settings for an independent Git
+worktree. Do not set the owner path to the current directory just to bypass
+the check: that would incorrectly authorize inherited settings.
+
+## Claude Code worktrees
+
+Claude Code creates worktrees under `.claude/worktrees/`, including for
+subagents that use `isolation: worktree`. These are ordinary linked Git
+worktrees, not a separate Workspace provider. In an ordinary Git worktree,
+bootstrap is on demand: run `bin/workspace bootstrap` only when it needs
+application services or databases, including for tests. Scratch worktrees
+that only edit files do not need bootstrap.
+
+The manager checkout ownership check above also applies to Claude worktrees.
+Their location under `.claude/worktrees/` does not itself establish ownership;
+inherited manager settings must identify the checkout they belong to.
+
+`workspace init` does not generate Claude Code hooks or modify
+`.claude/settings.json`. For a bootstrapped ordinary Git worktree whose
+ownership is unambiguous, run `bin/workspace archive` inside it before
+removing it. Claude removing a worktree does not invoke Workspace cleanup.
 
 ## Hooks
 
@@ -272,7 +313,10 @@ To skip either install, set `WORKSPACE_SKIP_CLAUDE_SKILL=1` or `WORKSPACE_SKIP_C
 
 `workspace run` loads the linked `.env` as defaults before sourcing the run hook. Values already exported by the workspace manager, and values exported by the hook, take precedence. Keep `.env` shell-compatible because the CLI sources it with `/bin/sh`.
 Workspace honors `SUPERCONDUCTOR_PORT`, `SUPERSET_PORT`, and `CONDUCTOR_PORT`
-when supplied; otherwise named worktrees receive a deterministic 10-port block.
+only when their manager's owner path matches the current checkout; otherwise
+named worktrees receive a deterministic 10-port block. An inherited port without
+a usable owner path is an error, even when a `.workspace` marker supplies the
+database identity.
 
 ## Tests
 

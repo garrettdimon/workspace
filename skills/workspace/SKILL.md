@@ -22,6 +22,12 @@ Invoke when the user wants to:
 
 Strong signals you're in workspace territory: a `.workspace` file in the repo, a `.conductor/settings.toml` / `.superconductor/config.json` / `.superset/config.json`, sibling directories like `myapp-feature-x` next to `myapp`, or the user mentioning Conductor / Superset / Superconductor.
 
+Claude Code worktrees (`.claude/worktrees/…`) are ordinary linked Git worktrees, not a separate Workspace provider. Bootstrap ordinary Git worktrees on demand with `bin/workspace bootstrap` only when the task needs application services or databases, including for tests; file-only scratch worktrees do not need it. Workspace generates no Claude Code hooks. For a bootstrapped worktree whose ownership is unambiguous, run `bin/workspace archive` inside it before removal.
+
+Manager settings apply only when the canonical `SUPERCONDUCTOR_WORKSPACE_PATH`, `SUPERSET_WORKSPACE_PATH`, or `CONDUCTOR_WORKSPACE_PATH` matches Git's current checkout root. Resolve symlinks before comparison; a manager alias and physical directory can name the same checkout. A different owner path excludes that manager's identity, root, and ports together, leaving a separate linked worktree to Git detection and registration. A `.claude/worktrees/…` path or identity marker alone does not establish ownership.
+
+Manager root, name, or port inputs without a usable matching-family owner path stop lifecycle commands. Use the manager's launch context, or a clean shell without inherited manager settings for an independent Git worktree. Never manufacture an owner path to authorize inherited values. This is a compatibility change for older integrations that omit `*_WORKSPACE_PATH`.
+
 ## Commands
 
 | Command | When to run | What it does |
@@ -144,7 +150,7 @@ cd .. && rm -rf myapp-feature-x
 - Generated provider configs call `bin/workspace`, which tries PATH and then `${WORKSPACE_HOME:-$HOME/.workspace}`. It reports an install command when missing and an exact update command when older than `.workspace-version`; it never downloads code automatically.
 - `.workspace` must be non-empty; an empty `.conductor-workspace` retains its legacy unpinned behavior. Both marker paths must be regular, non-symlink files. Reserved, multiline, and control-character identities fail closed instead of silently selecting another database. Existing non-empty `.conductor-workspace` files remain authoritative and are mirrored to `.workspace` after successful bootstrap.
 - Generic Git worktrees are registered so cleanup can recover after an external tool deletes their directories or native Codex cleanup is interrupted. Run `bin/workspace prune` from a surviving checkout to reconcile immediately; the SessionEnd deferred prune and normal bootstrap/run reconciliation are fallback paths. Archive cleans only its current workspace.
-- Port precedence is `WORKSPACE_PORT`, an existing Git registry reservation, `SUPERCONDUCTOR_PORT`, `SUPERSET_PORT`, `CONDUCTOR_PORT`, then deterministic or default allocation. Port inputs must be decimal base ports from `1` through `65526` so the complete 10-port block stays within `1-65535`; leading zeroes are normalized. Invalid values fail before starting processes, and an explicit `WORKSPACE_PORT` already overlapping another Git worktree's block fails instead of silently moving or sharing it. `bin/workspace info` reports the resolved block.
+- Port precedence is `WORKSPACE_PORT`, an existing Git registry reservation, the selected manager's own port, then deterministic or default allocation. Manager identity and ports are never borrowed across families. With only verified manager port inputs, Git identity and registration are preserved; manager port priority is Superconductor, Superset, then Conductor. Manager ports require a usable matching-family owner path and are ignored when that path belongs to another checkout. Port inputs must be decimal base ports from `1` through `65526` so the complete 10-port block stays within `1-65535`; leading zeroes are normalized. Invalid values fail before starting processes, and an explicit `WORKSPACE_PORT` already overlapping another Git worktree's block fails instead of silently moving or sharing it. `bin/workspace info` reports the resolved block.
 
 ## Reference
 
