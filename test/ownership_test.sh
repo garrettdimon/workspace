@@ -1,8 +1,9 @@
 #!/bin/sh
 # Manager environment belongs to one checkout, not its child agent shells.
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 . ./test_helper.sh
 . "$WORKSPACE_HOME/lib/registry.sh"
+[ -n "$TEST_TMP" ] && [ -d "$TEST_TMP" ] || exit 1
 
 unset SUPERCONDUCTOR_ROOT_PATH SUPERCONDUCTOR_WORKSPACE_NAME SUPERCONDUCTOR_WORKSPACE_PATH SUPERCONDUCTOR_PORT
 unset SUPERSET_ROOT_PATH SUPERSET_WORKSPACE_NAME SUPERSET_WORKSPACE_PATH SUPERSET_PORT
@@ -11,16 +12,16 @@ unset CONDUCTOR_ROOT_PATH CONDUCTOR_WORKSPACE_NAME CONDUCTOR_WORKSPACE_PATH COND
 root="$TEST_TMP/root"
 owner="$TEST_TMP/physical-manager-checkout"
 child="$TEST_TMP/child"
-git init -q "$root"
-git -C "$root" -c user.name=Test -c user.email=test@example.com commit -qm initial --allow-empty
-git -C "$root" worktree add -q --detach "$owner"
-git -C "$root" worktree add -q --detach "$child"
-root=$(cd "$root" && pwd -P)
-owner=$(cd "$owner" && pwd -P)
-child=$(cd "$child" && pwd -P)
-ln -s "$owner" "$TEST_TMP/manager-display-name"
+git init -q "$root" || exit 1
+git -C "$root" -c user.name=Test -c user.email=test@example.com commit --no-gpg-sign -qm initial --allow-empty || exit 1
+git -C "$root" worktree add -q --detach "$owner" || exit 1
+git -C "$root" worktree add -q --detach "$child" || exit 1
+root=$(cd "$root" && pwd -P) || exit 1
+owner=$(cd "$owner" && pwd -P) || exit 1
+child=$(cd "$child" && pwd -P) || exit 1
+ln -s "$owner" "$TEST_TMP/manager-display-name" || exit 1
 manager_root="$TEST_TMP/manager-root"
-mkdir -p "$manager_root"
+mkdir -p "$manager_root" || exit 1
 
 for family in SUPERCONDUCTOR SUPERSET CONDUCTOR; do
   (

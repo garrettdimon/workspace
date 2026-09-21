@@ -154,11 +154,9 @@ worktree until the project removes it.
 
 ## Reuse the task's checkout
 
-Use one worktree for each task. When Conductor, Superset, or Superconductor
-has already created the task's checkout, start Claude Code or Codex there.
-Starting an agent does not require another worktree. Let the manager's
-configured lifecycle own setup and teardown; do not repeat bootstrap when
-its setup is already running or has succeeded.
+Use one worktree for each task. If Conductor, Superset, or Superconductor
+created it, start the agent there and let the manager own setup and teardown.
+Wait for setup to finish; starting an agent does not require another bootstrap.
 
 For example, start Claude without `--worktree` inside a Conductor workspace.
 When opening that checkout in the Codex desktop app, use **Local** rather
@@ -166,10 +164,10 @@ than requesting a new worktree. Use `claude --worktree`, Codex's **Worktree**
 mode, or `git worktree add` when you intentionally want a separate task
 checkout. Workspace prepares an existing checkout; it does not create one.
 
-File-only scratch worktrees do not need application setup. A manually managed
-worktree can run `bin/workspace bootstrap` when application resources become
-necessary. A client's configured setup may run automatically, as described
-for Codex below.
+For a manually managed worktree, run `bin/workspace bootstrap` when application
+services or databases are needed, and `bin/workspace archive` before removing
+it. File-only scratch worktrees need neither. Codex can automate this lifecycle
+through its local environment, as described below.
 
 ## Codex worktrees
 
@@ -197,11 +195,9 @@ which waits for Git to confirm that Codex removed the worktree before killing
 its ports and dropping its databases.
 
 After committing the generated `.codex` files, select the local environment in
-Codex when starting a worktree chat that needs application setup. Bootstrap
-runs automatically for that environment; do not run it again just because
-the agent starts. For file-only scratch work, create the worktree without
-this setup environment. Review and trust the project hook when Codex prompts;
-untrusted command hooks are skipped.
+Codex when starting a worktree chat that needs application setup. For file-only
+scratch work, create the worktree without this setup environment. Review and
+trust the project hook when Codex prompts; untrusted command hooks are skipped.
 
 `CODEX_SOURCE_TREE_PATH` and `CODEX_WORKTREE_PATH` locate Codex checkouts when
 Codex provides them; they never construct `WORKSPACE_NAME` or
@@ -228,8 +224,7 @@ ports, and lifecycle.
 
 When the owner path identifies a different checkout, that manager's inherited
 identity, root, and port inputs are ignored together. A separate linked Git
-worktree uses Git detection and its own cleanup registration; an agent running
-in the manager's existing checkout continues using that manager's lifecycle.
+worktree uses Git detection and its own cleanup registration.
 A `.workspace` marker pins a database identity, not checkout ownership.
 
 **Compatibility:** manager identity, root, or port variables now require a
@@ -244,20 +239,13 @@ the check: that would incorrectly authorize inherited settings.
 
 When explicitly requested, Claude Code creates worktrees under
 `.claude/worktrees/`, including for subagents that use `isolation: worktree`.
-These are ordinary linked Git worktrees, not a separate Workspace provider.
-In an ordinary Git worktree,
-bootstrap is on demand: run `bin/workspace bootstrap` only when it needs
-application services or databases, including for tests. Scratch worktrees
-that only edit files do not need bootstrap.
-
-The manager checkout ownership check above also applies to Claude worktrees.
-Their location under `.claude/worktrees/` does not itself establish ownership;
-inherited manager settings must identify the checkout they belong to.
+These are ordinary linked Git worktrees and use the manual lifecycle described
+above. Their location does not establish manager ownership; the same
+checkout-path check applies.
 
 `workspace init` does not generate Claude Code hooks or modify
-`.claude/settings.json`. For a bootstrapped ordinary Git worktree whose
-ownership is unambiguous, run `bin/workspace archive` inside it before
-removing it. Claude removing a worktree does not invoke Workspace cleanup.
+`.claude/settings.json`. Claude removing a worktree does not invoke Workspace
+cleanup, so archive its application resources first.
 
 ## Hooks
 

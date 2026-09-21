@@ -24,11 +24,11 @@ Strong signals you're in workspace territory: a `.workspace` file in the repo, a
 
 ## Choose the checkout and lifecycle owner
 
-Use one worktree for each task. Reuse the checkout already supplied by Conductor, Superset, Superconductor, or the client for that task. Do not create another worktree merely because an agent is starting. Let the manager's configured lifecycle own setup and teardown; wait for an active setup to finish rather than running a second bootstrap. A new agent session does not itself require repeating successful setup.
+Use one worktree for each task. Reuse the checkout supplied by Conductor, Superset, Superconductor, or the client. Let its configured lifecycle own setup and teardown. Wait for active setup to finish; starting an agent does not require another bootstrap.
 
 Inside an existing task checkout, start Claude without `--worktree`, or use **Local** when opening it in the Codex desktop app. Request `claude --worktree`, Codex **Worktree** mode, or `git worktree add` only for an intentionally separate task checkout. `workspace bootstrap` prepares a checkout; it does not create one.
 
-The generated Codex local environment runs bootstrap automatically when selected for a new worktree. Do not repeat that setup when the agent starts. For file-only scratch work, create the worktree without that setup environment. In a manually managed worktree, bootstrap only when application resources are needed and archive those resources before removing the checkout. In a manager-owned checkout, use that manager's configured lifecycle.
+The generated Codex local environment runs bootstrap automatically when selected for a new worktree. For file-only scratch work, omit that environment. In a manually managed worktree, bootstrap only when application resources are needed and archive those resources before removing the checkout.
 
 Claude Code worktrees (`.claude/worktrees/…`) are ordinary linked Git worktrees, not a separate Workspace provider. Workspace generates no Claude Code hooks; Claude removing a worktree does not invoke Workspace cleanup.
 
