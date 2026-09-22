@@ -146,6 +146,13 @@ cd .. && rm -rf myapp-feature-x
 - Generic Git worktrees are registered so cleanup can recover after an external tool deletes their directories or native Codex cleanup is interrupted. Run `bin/workspace prune` from a surviving checkout to reconcile immediately; the SessionEnd deferred prune and normal bootstrap/run reconciliation are fallback paths. Archive cleans only its current workspace.
 - Port precedence is `WORKSPACE_PORT`, an existing Git registry reservation, `SUPERCONDUCTOR_PORT`, `SUPERSET_PORT`, `CONDUCTOR_PORT`, then deterministic or default allocation. Port inputs must be decimal base ports from `1` through `65526` so the complete 10-port block stays within `1-65535`; leading zeroes are normalized. Invalid values fail before starting processes, and an explicit `WORKSPACE_PORT` already overlapping another Git worktree's block fails instead of silently moving or sharing it. `bin/workspace info` reports the resolved block.
 
+For a project hostname shared by `info` and `run`, set
+`WORKSPACE_APP_URL_TEMPLATE='https://app.example.localhost:{port}'` in `.env`.
+Only the literal `{port}` is replaced; no template code executes. A complete
+`WORKSPACE_APP_URL` still wins, including a run-hook override. `info` does not
+run startup hooks or reserve ports; its port may be provisional before setup/run.
+This configures the displayed address, not the web server or certificates.
+
 ## Reference
 
 - Source: <https://github.com/jnunemaker/workspace>

@@ -490,3 +490,26 @@ resolve_workspace_port() {
 detect_app_name() {
   APP_NAME=$(basename "$(pwd)" | tr '-' '_')
 }
+
+# Display configuration only: never evaluate template text as shell code.
+# Complete URLs (including legacy run-hook overrides) retain precedence.
+workspace_app_url() (
+  if [ -n "${WORKSPACE_APP_URL:-}" ]; then
+    printf '%s\n' "$WORKSPACE_APP_URL"
+  elif [ -n "${WORKSPACE_APP_URL_TEMPLATE:-}" ]; then
+    _url="$WORKSPACE_APP_URL_TEMPLATE"
+    while :; do
+      case "$_url" in
+        *'{port}'*)
+          printf '%s%s' "${_url%%"{port}"*}" "$1"
+          _url=${_url#*"{port}"}
+          ;;
+        *) printf '%s\n' "$_url"; break ;;
+      esac
+    done
+  elif [ "$USES_CADDY" = "true" ]; then
+    printf 'https://%s.localhost:%s\n' "$(basename "$(pwd)")" "$1"
+  else
+    printf 'http://localhost:%s\n' "$1"
+  fi
+)

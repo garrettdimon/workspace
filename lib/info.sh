@@ -54,13 +54,7 @@ else
   _workspace_suffix="_${WORKSPACE_NAME}"
 fi
 
-if [ -n "${WORKSPACE_APP_URL:-}" ]; then
-  _workspace_url="$WORKSPACE_APP_URL"
-elif [ "$USES_CADDY" = "true" ]; then
-  _workspace_url="https://$(basename "$(pwd)").localhost:${BASE_PORT}"
-else
-  _workspace_url="http://localhost:${BASE_PORT}"
-fi
+_workspace_url=$(workspace_app_url "$BASE_PORT")
 
 echo "Provider: $_provider"
 echo "Workspace: $_workspace_name"

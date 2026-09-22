@@ -195,6 +195,25 @@ worktree. The registry, deferred SessionEnd prune, and reconciliation on the
 next `workspace bootstrap` or `workspace run` are recovery mechanisms when
 native cleanup could not complete.
 
+## Project application URL
+
+To give `info` and `run` the same project hostname with the resolved application
+port, set this in the project's shell-compatible `.env`:
+
+```sh
+WORKSPACE_APP_URL_TEMPLATE='https://app.example.localhost:{port}'
+```
+
+Workspace replaces each literal `{port}` with the application port. It does not
+execute the pattern; other text is unchanged. A complete `WORKSPACE_APP_URL`
+takes precedence, including an existing run-hook override. Move URL-only settings
+out of that hook when adopting the shared template: `info` never runs startup
+hooks. Projects without a template keep their existing fallback URL.
+
+The URL is display configuration, not a server or certificate setting. Nothing
+is saved or checked for reachability. Before a Git worktree reserves its ports,
+`info` can show a proposed port that `run` later changes to avoid a conflict.
+
 ## Hooks
 
 Place any of these in your project's `bin/` directory to customize the workspace lifecycle. All hooks except `bin/workspace-environment-hook` must be executable (`chmod +x`). The environment hook is sourced whenever it is a regular file and only needs to be readable.

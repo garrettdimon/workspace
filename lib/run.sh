@@ -127,12 +127,10 @@ fi
 # ── Start server ─────────────────────────────────────────────────
 
 header "Starting app"
-if [ -n "${WORKSPACE_APP_URL:-}" ]; then
-  detail "$WORKSPACE_APP_URL"
-elif [ "$USES_CADDY" = "true" ]; then
-  detail "https://$(basename "$(pwd)").localhost:${HTTPS_PORT}"
+if [ "$USES_CADDY" = "true" ]; then
+  detail "$(workspace_app_url "$HTTPS_PORT")"
 else
-  detail "http://localhost:${PORT}"
+  detail "$(workspace_app_url "$PORT")"
 fi
 divider
 
