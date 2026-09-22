@@ -491,6 +491,8 @@ detect_app_name() {
   APP_NAME=$(basename "$(pwd)" | tr '-' '_')
 }
 
+# ── Application URL display ────────────────────────────────────
+
 # Display configuration only: never evaluate template text as shell code.
 # Complete URLs (including legacy run-hook overrides) retain precedence.
 workspace_app_url() (
@@ -498,6 +500,8 @@ workspace_app_url() (
     printf '%s\n' "$WORKSPACE_APP_URL"
   elif [ -n "${WORKSPACE_APP_URL_TEMPLATE:-}" ]; then
     _url="$WORKSPACE_APP_URL_TEMPLATE"
+    # Emit each literal prefix and port, then advance past that token. This
+    # supports repeated tokens without interpreting shell or URL syntax.
     while :; do
       case "$_url" in
         *'{port}'*)

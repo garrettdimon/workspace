@@ -54,6 +54,8 @@ else
   _workspace_suffix="_${WORKSPACE_NAME}"
 fi
 
+# Use shared display configuration without running startup hooks or reserving
+# a port. Before registration, the resolved port can still be provisional.
 _workspace_url=$(workspace_app_url "$BASE_PORT")
 
 echo "Provider: $_provider"

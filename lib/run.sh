@@ -127,6 +127,8 @@ fi
 # ── Start server ─────────────────────────────────────────────────
 
 header "Starting app"
+# Keep the historical service-port choice after the hook: it may change PORT
+# independently of HTTPS_PORT. Complete hook URLs still override the template.
 if [ "$USES_CADDY" = "true" ]; then
   detail "$(workspace_app_url "$HTTPS_PORT")"
 else
