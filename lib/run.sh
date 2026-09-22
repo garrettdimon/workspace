@@ -9,7 +9,7 @@
 #   5. Detect app services, resolve authoritative ports, and export them
 #   6. Sweep ports (kill stale processes)
 #   7. Source bin/workspace-run-hook if it exists
-#   8. Display the hook-provided application URL or the generic fallback
+#   8. Display the configured application URL or the generic fallback
 #   9. Start server via foreman
 
 set -e
