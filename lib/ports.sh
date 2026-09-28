@@ -40,7 +40,7 @@ workspace_port_snapshot() {
       endpoint=name; sub(/->.*/, "", endpoint)
       port=endpoint; sub(/^.*:/, "", port)
       if (port !~ /^[0-9]+$/) { bad=1; return }
-      if (port < base || port > base+9) return
+      if (port+0 < base+0 || port+0 > base+9) return
       if (protocol == "TCP" && state == "") { bad=1; return }
       if (protocol == "TCP" && state != "LISTEN") return
       printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
