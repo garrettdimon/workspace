@@ -32,6 +32,9 @@ every `??` path separately with `git diff --no-index /dev/null path/from/status`
 project-specific lifecycle hooks the application needs, then stage and commit
 only the files you reviewed.
 
+If the application uses a custom hostname, see [Project application URL](#project-application-url)
+so `info` and `run` can display the same address.
+
 For a sibling checkout you manage yourself, use the committed project
 entrypoint when it needs application services or databases:
 
@@ -247,6 +250,31 @@ checkout-path check applies.
 `.claude/settings.json`. Claude removing a worktree does not invoke Workspace
 cleanup, so archive its application resources first.
 
+## Project application URL
+
+To give `info` and `run` the same project hostname with the resolved application
+port, set this in the project's shell-compatible `.env`:
+
+```sh
+WORKSPACE_APP_URL_TEMPLATE='https://app.example.localhost:{port}'
+```
+
+Workspace replaces each literal `{port}` with the application port. It does not
+execute the pattern; other text is unchanged. A complete `WORKSPACE_APP_URL`
+takes precedence. Because `.env` is shared across sibling workspaces, use a complete
+URL there only when every sibling should display that same fixed address; do not
+put one workspace's allocated port in it.
+Existing run-hook overrides remain supported, but affect only `run`. Move URL-only settings
+out of that hook when adopting the shared template: `info` never runs startup
+hooks. A conflicting hook assignment can make the two commands display different
+addresses. Projects without a template keep their existing fallback URL.
+
+The URL is display configuration, not a server or certificate setting. Nothing
+is saved or checked for reachability. Before a Git worktree reserves its ports,
+`info` can show a proposed port that `run` later changes to avoid a conflict.
+A run hook that changes the application port can also change the address shown by
+`run`; `info` cannot see that hook override.
+
 ## Hooks
 
 Place any of these in your project's `bin/` directory to customize the workspace lifecycle. All hooks except `bin/workspace-environment-hook` must be executable (`chmod +x`). The environment hook is sourced whenever it is a regular file and only needs to be readable.
@@ -259,7 +287,7 @@ Place any of these in your project's `bin/` directory to customize the workspace
 | `bin/workspace-setup-hook` | After shared files and `WORKSPACE_DB_SUFFIX` are available, before Workspace prepares development/test databases; replaces ordinary setup fallback for managed siblings | Executed |
 | `bin/workspace-seed` | After workspace databases are prepared (during bootstrap) | Executed |
 | `bin/workspace-bootstrap-hook` | After DB preparation, seeding, and `.workspace` file written | Executed |
-| `bin/workspace-run-hook` | Before foreman starts, after dotenv, ports, and `WORKSPACE_DB_SUFFIX` are exported | Sourced when executable (can set env vars and `WORKSPACE_APP_URL` for the server) |
+| `bin/workspace-run-hook` | Before foreman starts, after dotenv, ports, and `WORKSPACE_DB_SUFFIX` are exported | Sourced when executable (can set server environment variables; legacy URL overrides affect only `run`) |
 | `bin/workspace-archive-hook` | Before ports are swept and DBs dropped | Executed with `WORKSPACE_DB_SUFFIX` set |
 
 Use `bin/workspace-setup-hook` for dependency installation or other setup that
@@ -299,7 +327,6 @@ RAILS_ENV=development bin/rails db:fixtures:load
 # bin/workspace-run-hook — set an app-specific env var
 #!/bin/sh
 export DISABLE_SSL=true
-WORKSPACE_APP_URL="https://my-feature.example.test"
 
 # bin/workspace-archive-hook — clean up external resources
 #!/bin/sh
@@ -320,7 +347,8 @@ To skip either install, set `WORKSPACE_SKIP_CLAUDE_SKILL=1` or `WORKSPACE_SKIP_C
 - `WORKSPACE_ROOT_PATH` — resolved path to the original checkout; guaranteed to be available to the database hook when it names an existing directory
 - `WORKSPACE_SKIP_CLAUDE_SKILL` — set to `1` to skip the Claude Code skill install
 - `WORKSPACE_SKIP_CODEX_SKILL` — set to `1` to skip the Codex skill install
-- `WORKSPACE_APP_URL` — set by `bin/workspace-run-hook` to override the URL displayed before Foreman starts
+- `WORKSPACE_APP_URL_TEMPLATE` — optional shared display address with a literal `{port}` placeholder; see [Project application URL](#project-application-url)
+- `WORKSPACE_APP_URL` — complete display address, overriding the template; a legacy run-hook assignment affects only `run`
 
 `workspace run` loads the linked `.env` as defaults before sourcing the run hook. Values already exported by the workspace manager, and values exported by the hook, take precedence. Keep `.env` shell-compatible because the CLI sources it with `/bin/sh`.
 Workspace honors `SUPERCONDUCTOR_PORT`, `SUPERSET_PORT`, and `CONDUCTOR_PORT`

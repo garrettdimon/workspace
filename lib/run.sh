@@ -9,7 +9,7 @@
 #   5. Detect app services, resolve authoritative ports, and export them
 #   6. Sweep ports (kill stale processes)
 #   7. Source bin/workspace-run-hook if it exists
-#   8. Display the hook-provided application URL or the generic fallback
+#   8. Display the configured application URL or the generic fallback
 #   9. Start server via foreman
 
 set -e
@@ -127,12 +127,12 @@ fi
 # ── Start server ─────────────────────────────────────────────────
 
 header "Starting app"
-if [ -n "${WORKSPACE_APP_URL:-}" ]; then
-  detail "$WORKSPACE_APP_URL"
-elif [ "$USES_CADDY" = "true" ]; then
-  detail "https://$(basename "$(pwd)").localhost:${HTTPS_PORT}"
+# Keep the historical service-port choice after the hook: it may change PORT
+# independently of HTTPS_PORT. Complete hook URLs still override the template.
+if [ "$USES_CADDY" = "true" ]; then
+  detail "$(workspace_app_url "$HTTPS_PORT")"
 else
-  detail "http://localhost:${PORT}"
+  detail "$(workspace_app_url "$PORT")"
 fi
 divider
 

@@ -42,7 +42,7 @@ Manager root, name, or port inputs without a usable matching-family owner path s
 | --- | --- | --- |
 | `workspace init` | During onboarding, or later when intentionally refreshing generated files; run from the root checkout | Patches `config/database.yml`, creates/updates `bin/workspace` plus `.workspace-version`, and creates/updates recognized provider configs to use the shim. Does not scaffold optional hooks. Idempotent. |
 | `bin/workspace bootstrap` | Called by the lifecycle owner for application setup in an existing checkout; manually when needed if no manager is handling setup | Links untracked shared files, exports the suffix, publishes Git cleanup registration, sources the environment hook, runs the dedicated setup hook (or legacy setup fallback), prepares databases, writes `.workspace`, and runs optional post-setup hooks. In root, sources the environment hook before ordinary setup. Never runs `bin/update`. |
-| `bin/workspace run` | To start the dev server in a sibling | Loads linked `.env` defaults, reserves a Git port and exports `WORKSPACE_DB_SUFFIX`, sources the environment hook, computes authoritative service ports, sources `bin/workspace-run-hook`, displays its optional `WORKSPACE_APP_URL`, then starts foreman. |
+| `bin/workspace run` | To start the dev server in a sibling | Loads linked `.env` defaults, reserves a Git port and exports `WORKSPACE_DB_SUFFIX`, sources the environment hook, computes authoritative service ports, sources `bin/workspace-run-hook`, displays the configured application URL, then starts foreman. |
 | `bin/workspace archive` | When you're done with a sibling workspace | Sources the environment hook, runs `bin/workspace-archive-hook`, kills processes on the workspace's ports, and drops the suffixed DBs. |
 | `bin/workspace prune` | From the root or any remaining checkout after an external tool removes Git worktrees | Reconciles the shared Git registry and archives resources for worktrees that no longer exist. Safe to re-run. |
 | `bin/workspace info` | To inspect any initialized checkout | Prints provider, name, root, suffix, URL, and the allocated 10-port block. |
@@ -61,7 +61,7 @@ The project customizes the lifecycle with scripts in its own `bin/` directory. E
 | `bin/workspace-setup-hook` | After shared files and `WORKSPACE_DB_SUFFIX`, before Workspace prepares dev/test databases; prevents the legacy setup fallback in managed siblings | Executed |
 | `bin/workspace-seed` | After `db:prepare` during bootstrap | Executed |
 | `bin/workspace-bootstrap-hook` | After DB preparation, seeding, and `.workspace` file write | Executed |
-| `bin/workspace-run-hook` | Before foreman starts (after dotenv, ports, and `WORKSPACE_DB_SUFFIX`) | **Sourced when executable** — can export server variables and set `WORKSPACE_APP_URL` for display |
+| `bin/workspace-run-hook` | Before foreman starts (after dotenv, ports, and `WORKSPACE_DB_SUFFIX`) | **Sourced when executable** — can export server variables; legacy `WORKSPACE_APP_URL` overrides affect only `run` |
 | `bin/workspace-archive-hook` | Before ports are swept and DBs dropped | Executed with `WORKSPACE_DB_SUFFIX` set |
 
 Every hook is optional, and `workspace init` does not create empty hook files.
@@ -91,6 +91,9 @@ directory, Workspace guarantees that the database hook receives it unchanged.
 ## Common workflows
 
 **Onboarding a project**
+
+For custom hostnames, follow [Project application URL](#project-application-url)
+so `info` and `run` can display the same address.
 
 ```sh
 cd ~/projects/myapp        # the root checkout
@@ -159,14 +162,29 @@ cd .. && rm -rf myapp-feature-x
 - Tracked files such as `.tool-versions` are never replaced with root symlinks. Shared directories such as `.bundle/` and `storage/` are also preserved when they contain tracked descendants; untracked-only directories retain the historical root-linking behavior.
 - `.env` is *symlinked*, not copied. Edits in any sibling affect the shared file.
 - The `database.yml` patch matches a specific shape. Hand-edited unusual `database.yml` files may not patch cleanly — check the diff after `init`.
-- `workspace-environment-hook` and `workspace-run-hook` are **sourced**; the others are **executed**. Use `export` in sourced hooks; use plain commands elsewhere. Keep toolchain activation in the environment hook and set `WORKSPACE_APP_URL` in the run hook when the generic localhost URL is inaccurate.
+- `workspace-environment-hook` and `workspace-run-hook` are **sourced**; the others are **executed**. Use `export` in sourced hooks; use plain commands elsewhere. Keep toolchain activation in the environment hook. Configure shared display URLs as described below; `info` does not source either hook.
 - Generated provider configs call `bin/workspace`, which tries PATH and then `${WORKSPACE_HOME:-$HOME/.workspace}`. It reports an install command when missing and an exact update command when older than `.workspace-version`; it never downloads code automatically.
 - `.workspace` must be non-empty; an empty `.conductor-workspace` retains its legacy unpinned behavior. Both marker paths must be regular, non-symlink files. Reserved, multiline, and control-character identities fail closed instead of silently selecting another database. Existing non-empty `.conductor-workspace` files remain authoritative and are mirrored to `.workspace` after successful bootstrap.
 - Generic Git worktrees are registered so cleanup can recover after an external tool deletes their directories or native Codex cleanup is interrupted. Run `bin/workspace prune` from a surviving checkout to reconcile immediately; the SessionEnd deferred prune and normal bootstrap/run reconciliation are fallback paths. Archive cleans only its current workspace.
 - Port precedence is `WORKSPACE_PORT`, an existing Git registry reservation, the selected manager's own port, then deterministic or default allocation. Manager identity and ports are never borrowed across families. With only verified manager port inputs, Git identity and registration are preserved; manager port priority is Superconductor, Superset, then Conductor. Manager ports require a usable matching-family owner path and are ignored when that path belongs to another checkout. Port inputs must be decimal base ports from `1` through `65526` so the complete 10-port block stays within `1-65535`; leading zeroes are normalized. Invalid values fail before starting processes, and an explicit `WORKSPACE_PORT` already overlapping another Git worktree's block fails instead of silently moving or sharing it. `bin/workspace info` reports the resolved block.
 
+## Project application URL
+
+For a project hostname shared by `info` and `run` using Workspace's resolved port, set
+`WORKSPACE_APP_URL_TEMPLATE='https://app.example.localhost:{port}'` in `.env`.
+Only the literal `{port}` is replaced; no template code executes. A complete
+`WORKSPACE_APP_URL` takes precedence. Since `.env` is shared across siblings, put
+a complete URL there only when all siblings should display that same fixed address,
+not an address containing one workspace's allocated port.
+Existing run-hook overrides remain supported but affect only `run`; remove redundant
+URL assignments from that hook when adopting the shared template. Conflicting hook
+assignments can make `info` and `run` display different addresses. `info` does not
+run startup hooks or reserve ports; its port may be provisional before setup/run.
+It also cannot see application-port overrides made by a run hook.
+This configures the displayed address, not the web server or certificates.
+
 ## Reference
 
 - Source: <https://github.com/jnunemaker/workspace>
 - Local install: `~/.workspace` (CLI in `~/.workspace/bin/workspace`, lib scripts in `~/.workspace/lib/`)
-- Environment: `WORKSPACE_HOME` (install location), `WORKSPACE_PORT` (optional base-port override), `SUPERCONDUCTOR_PORT` / `SUPERSET_PORT` / `CONDUCTOR_PORT` (provider-assigned base ports), `WORKSPACE_DB_SUFFIX` (exported during bootstrap/run), `WORKSPACE_ROOT_PATH` (resolved path to the original checkout; guaranteed to be available to the database hook when it names an existing directory), `WORKSPACE_APP_URL` (optional displayed URL from the run hook)
+- Environment: `WORKSPACE_HOME` (install location), `WORKSPACE_PORT` (optional base-port override), `SUPERCONDUCTOR_PORT` / `SUPERSET_PORT` / `CONDUCTOR_PORT` (provider-assigned base ports), `WORKSPACE_DB_SUFFIX` (exported during bootstrap/run), `WORKSPACE_ROOT_PATH` (resolved path to the original checkout; guaranteed to be available to the database hook when it names an existing directory), `WORKSPACE_APP_URL_TEMPLATE` (shared display address with a literal `{port}` placeholder), `WORKSPACE_APP_URL` (complete display address overriding the template; legacy run-hook assignments affect only `run`)
