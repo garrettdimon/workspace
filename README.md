@@ -351,11 +351,12 @@ To skip either install, set `WORKSPACE_SKIP_CLAUDE_SKILL=1` or `WORKSPACE_SKIP_C
 - `WORKSPACE_APP_URL` — complete display address, overriding the template; a legacy run-hook assignment affects only `run`
 
 `workspace run` loads the linked `.env` as defaults before sourcing the run hook. Values already exported by the workspace manager, and values exported by the hook, take precedence. Keep `.env` shell-compatible because the CLI sources it with `/bin/sh`.
-Workspace honors `SUPERCONDUCTOR_PORT`, `SUPERSET_PORT`, and `CONDUCTOR_PORT`
+Workspace honors `SUPERCONDUCTOR_PORT` and `CONDUCTOR_PORT`
 only when their manager's owner path matches the current checkout; otherwise
 named worktrees receive a deterministic 10-port block. An inherited port without
 a usable owner path is an error, even when a `.workspace` marker supplies the
-database identity.
+database identity. `SUPERSET_PORT` is Superset's own notification port, so it is
+ignored; Superset workspaces receive a deterministic block from their name.
 
 ## Tests
 

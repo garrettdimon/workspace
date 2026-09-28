@@ -40,7 +40,7 @@ assert_equal "SUPERCONDUCTOR_PORT takes precedence" "3950" "$result"
 unset SUPERCONDUCTOR_PORT
 WORKSPACE_PROVIDER="superset"
 result=$(derive_port)
-assert_equal "SUPERSET_PORT is honored" "3975" "$result"
+assert_false "SUPERSET_PORT (notification port) is not a workspace port" test "$result" = 3975
 
 # Superset workspace name derives port
 unset CONDUCTOR_PORT SUPERSET_PORT

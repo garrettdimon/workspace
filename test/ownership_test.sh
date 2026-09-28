@@ -53,19 +53,37 @@ for family in SUPERCONDUCTOR SUPERSET CONDUCTOR; do
     assert_equal "$family symlink owner retains provider" "$(printf '%s' "$family" | tr '[:upper:]' '[:lower:]')" "$WORKSPACE_PROVIDER"
     assert_equal "$family symlink owner retains display identity" manager-display-name "$WORKSPACE_NAME"
     assert_equal "$family symlink owner retains manager root" "$manager_root" "$WORKSPACE_ROOT_PATH"
-    assert_equal "$family symlink owner retains manager port" 41000 "$(resolve_workspace_port 3000)"
+    if [ "$family" = SUPERSET ]; then
+      # SUPERSET_PORT is Superset's notification port, never a workspace port.
+      assert_false "$family symlink owner ignores notification port" test "$(resolve_workspace_port 3000)" = 41000
+    else
+      assert_equal "$family symlink owner retains manager port" 41000 "$(resolve_workspace_port 3000)"
+    fi
 
     unset "${family}_ROOT_PATH" "${family}_WORKSPACE_NAME"
     resolve_workspace
     assert_equal "$family own port-only keeps Git isolation" git "$WORKSPACE_PROVIDER"
     assert_equal "$family own port-only keeps Git name" physical-manager-checkout "$WORKSPACE_NAME"
-    assert_equal "$family own port-only accepts verified port" 41000 "$(resolve_workspace_port 3000)"
+    if [ "$family" = SUPERSET ]; then
+      assert_false "$family own port-only ignores notification port" test "$(resolve_workspace_port 3000)" = 41000
+    else
+      assert_equal "$family own port-only accepts verified port" 41000 "$(resolve_workspace_port 3000)"
+    fi
     cd "$child"
     resolve_workspace
     assert_equal "$family foreign port-only keeps Git isolation" git "$WORKSPACE_PROVIDER"
     assert_false "$family foreign port-only rejects manager port" test "$(resolve_workspace_port 3000)" = 41000
 
-    for field in ROOT_PATH WORKSPACE_NAME PORT; do
+    fields="ROOT_PATH WORKSPACE_NAME PORT"
+    if [ "$family" = SUPERSET ]; then
+      fields="ROOT_PATH WORKSPACE_NAME"
+      unset SUPERSET_WORKSPACE_PATH
+      export SUPERSET_PORT=41000
+      assert_true "$family notification port alone is not manager input" resolve_workspace
+      assert_equal "$family notification port is left for Superset" 41000 "${SUPERSET_PORT:-}"
+      unset SUPERSET_PORT
+    fi
+    for field in $fields; do
       export "${family}_${field}=41000"
       unset "${family}_WORKSPACE_PATH"
       assert_false "$family $field without owner fails" resolve_workspace >"$TEST_TMP/error" 2>&1

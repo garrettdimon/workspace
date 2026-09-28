@@ -34,7 +34,9 @@ resolve_workspace() {
     eval '_owner=${'"${_manager}"'_WORKSPACE_PATH:-}'
     eval '_root=${'"${_manager}"'_ROOT_PATH:-}'
     eval '_name=${'"${_manager}"'_WORKSPACE_NAME:-}'
-    eval '_port=${'"${_manager}"'_PORT:-}'
+    # SUPERSET_PORT is Superset's notification port, not a workspace port.
+    _port=""
+    [ "$_manager" = SUPERSET ] || eval '_port=${'"${_manager}"'_PORT:-}'
     [ -n "$_root$_name$_port" ] || continue
     if [ -n "$_owner" ] && [ -d "$_owner" ]; then
       _owner=$(canonical_git_path "$_owner") || _owner=""
@@ -47,7 +49,8 @@ resolve_workspace() {
     fi
     if [ "$_owner" != "$_checkout" ]; then
       unset "${_manager}_ROOT_PATH" "${_manager}_WORKSPACE_NAME" \
-        "${_manager}_WORKSPACE_PATH" "${_manager}_PORT"
+        "${_manager}_WORKSPACE_PATH"
+      [ "$_manager" = SUPERSET ] || unset "${_manager}_PORT"
       continue
     fi
     # A port alone is not an identity: retain Git isolation and registration.
@@ -478,9 +481,8 @@ derive_workspace_port() {
   _provider_port=""
   case "$WORKSPACE_PROVIDER" in
     superconductor) _provider_port="${SUPERCONDUCTOR_PORT:-}" ;;
-    superset) _provider_port="${SUPERSET_PORT:-}" ;;
     conductor) _provider_port="${CONDUCTOR_PORT:-}" ;;
-    git|"") _provider_port="${SUPERCONDUCTOR_PORT:-${SUPERSET_PORT:-${CONDUCTOR_PORT:-}}}" ;;
+    git|"") _provider_port="${SUPERCONDUCTOR_PORT:-${CONDUCTOR_PORT:-}}" ;;
   esac
   _port_name="${WORKSPACE_NAME:-}"
   if [ -n "${WORKSPACE_PORT:-}" ]; then
